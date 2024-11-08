@@ -63,7 +63,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@TeleOp(name="Basic: Omni Linear OpMode", group="Linear OpMode")
+@TeleOp(name="Basic TeleOp", group="Linear OpMode")
 public class TeleOpBasic_Linear extends LinearOpMode {
 
     // Declare OpMode members for each of the 4 motors.
@@ -89,9 +89,6 @@ public class TeleOpBasic_Linear extends LinearOpMode {
         armExtension = hardwareMap.get(DcMotor.class, "armExtension");
         clawServo = hardwareMap.get(Servo.class, "claw");
 
-        armLift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-
         // ########################################################################################
         // !!!            IMPORTANT Drive Information. Test your motor directions.            !!!!!
         // ########################################################################################
@@ -107,6 +104,10 @@ public class TeleOpBasic_Linear extends LinearOpMode {
         rightFrontDrive.setDirection(DcMotor.Direction.FORWARD);
         rightBackDrive.setDirection(DcMotor.Direction.FORWARD);
 
+        armLift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        double liftTrim = 0;
+
         // Wait for the game to start (driver presses START)
         telemetry.addData("Status", "Initialized");
         telemetry.update();
@@ -117,6 +118,8 @@ public class TeleOpBasic_Linear extends LinearOpMode {
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
             double max;
+
+            if (gamepad2.x) liftTrim = 0;
 
             double driveSpeedMultiplier = (gamepad1.left_trigger>0.1) ? 1 : 0.5;
 
@@ -138,6 +141,12 @@ public class TeleOpBasic_Linear extends LinearOpMode {
             max = Math.max(max, Math.abs(leftBackPower));
             max = Math.max(max, Math.abs(rightBackPower));
 
+            if (gamepad2.dpad_up) liftTrim -= 0.002;
+            else if (gamepad2.dpad_down) liftTrim += 0.002;
+
+            liftTrim = Math.min(1, liftTrim);
+            liftTrim = Math.max(-1, liftTrim);
+
             if (max > 1.0) {
                 leftFrontPower  /= max;
                 rightFrontPower /= max;
@@ -147,11 +156,11 @@ public class TeleOpBasic_Linear extends LinearOpMode {
 
             double armLiftPower;
             double armExtensionPower;
-            double clawServoPower;
+            double clawServoPosition;
 
-            armLiftPower = gamepad2.left_stick_y * 0.75;
+            armLiftPower = liftTrim + gamepad2.left_stick_y * 0.3;
             armExtensionPower = gamepad2.right_stick_y;
-            clawServoPower = gamepad2.right_trigger-gamepad2.left_trigger;
+            clawServoPosition = (gamepad2.right_trigger*0.2)+0.4;
 
             // This is test code:
             //
@@ -178,7 +187,7 @@ public class TeleOpBasic_Linear extends LinearOpMode {
 
             armLift.setPower(armLiftPower);
             armExtension.setPower(armExtensionPower);
-            clawServo.setPosition(clawServoPower);
+            clawServo.setPosition(clawServoPosition);
 
             // Show the elapsed game time and wheel power.
             telemetry.addData("Status", "Run Time: " + runtime.toString());
@@ -186,7 +195,9 @@ public class TeleOpBasic_Linear extends LinearOpMode {
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", leftBackPower, rightBackPower);
             telemetry.addData("Lift Power", armLiftPower);
             telemetry.addData("Arm Extension Power", armExtensionPower);
-            telemetry.addData("Servo Power", clawServoPower);
+            telemetry.addData("Servo Position", clawServoPosition);
+            telemetry.addData("Lift Trim: ", liftTrim);
             telemetry.update();
         }
-    }}
+    }
+}
