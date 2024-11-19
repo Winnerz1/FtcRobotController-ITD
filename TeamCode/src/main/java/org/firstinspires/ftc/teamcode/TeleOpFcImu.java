@@ -109,6 +109,7 @@ public class TeleOpFcImu extends LinearOpMode {
         imu.initialize(parameters);
 
         // arm lift initialization
+        armLift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         armLift.setDirection(DcMotor.Direction.REVERSE);
         armLift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         armLift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -119,38 +120,30 @@ public class TeleOpFcImu extends LinearOpMode {
 
         int counter = 0;
         int armTarget = armLift.getCurrentPosition();
-        double armLiftPower = 0;
+        int armBottomLimit = armLift.getCurrentPosition();
+        double armLiftPower = 0.8;
 
         waitForStart();
         runtime.reset();
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
+            armLift.setPower(armLiftPower);
+
             int armPosition = armLift.getCurrentPosition();
 
-            if (gamepad2.left_stick_y>0.01 || gamepad2.left_stick_y<-0.01) {
-                armLift.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                armLiftPower = 0.375 + ((-gamepad2.left_stick_y > 0) ? -gamepad2.left_stick_y * 0.05 : -gamepad2.left_stick_y*0.3);
-                counter = 0;
-            }
-            else if (counter == 0){
-                armLift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-                armLift.setTargetPosition(armPosition);
-                armLiftPower = 0.8;
-                armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                counter++;
-            }
-            else {
-                armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            }
-            armLift.setPower(armLiftPower);
+            armTarget += -gamepad2.left_stick_y*3;
+            armTarget = Math.max(armTarget, armBottomLimit+10);
+
+            armLift.setTargetPosition(armTarget);
+            armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
             double max;
 
-            double driveSpeedMultiplier = (gamepad1.left_bumper) ? 0.8 : 0.6;
+            double driveSpeedMultiplier = (gamepad1.left_bumper) ? 0.8 : 0.5;
 
             double y = -gamepad1.left_stick_y; // Remember, Y stick value is reversed
-            double x = gamepad1.left_stick_x;
+            double x = gamepad1.left_stick_x + gamepad1.right_trigger - gamepad1.left_trigger;
             double rx = gamepad1.right_stick_x;
 
             if (gamepad1.y) {
