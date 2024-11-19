@@ -29,11 +29,15 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 /*
  * This file contains an example of a Linear "OpMode".
@@ -64,7 +68,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  */
 
 @TeleOp(group="Linear OpMode")
-public class TeleOpBasic_Linear extends LinearOpMode {
+public class TeleOpFcImu extends LinearOpMode {
 
     private ElapsedTime runtime = new ElapsedTime();
 
@@ -95,7 +99,17 @@ public class TeleOpBasic_Linear extends LinearOpMode {
         rightFrontDrive.setDirection(DcMotor.Direction.FORWARD);
         rightBackDrive.setDirection(DcMotor.Direction.FORWARD);
 
-        armLift.setDirection(DcMotor.Direction.FORWARD);
+        // Retrieve the IMU from the hardware map
+        IMU imu = hardwareMap.get(IMU.class, "imu");
+        // Adjust the orientation parameters to match your robot
+        IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
+                RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                RevHubOrientationOnRobot.UsbFacingDirection.LEFT));
+        // Without this, the REV Hub's orientation is assumed to be logo up / USB forward
+        imu.initialize(parameters);
+
+        // arm lift initialization
+        armLift.setDirection(DcMotor.Direction.REVERSE);
         armLift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         armLift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
@@ -114,16 +128,16 @@ public class TeleOpBasic_Linear extends LinearOpMode {
         while (opModeIsActive()) {
             int armPosition = armLift.getCurrentPosition();
 
-            if (gamepad2.left_stick_y>0.05 || gamepad2.left_stick_y<-0.05) {
+            if (gamepad2.left_stick_y>0.01 || gamepad2.left_stick_y<-0.01) {
                 armLift.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                armLiftPower = -gamepad2.left_stick_y * 0.5;
+                armLiftPower = 0.375 + ((-gamepad2.left_stick_y > 0) ? -gamepad2.left_stick_y * 0.05 : -gamepad2.left_stick_y*0.3);
                 counter = 0;
             }
             else if (counter == 0){
                 armLift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-                armTarget = armPosition;
-                armLift.setTargetPosition(armTarget);
+                armLift.setTargetPosition(armPosition);
                 armLiftPower = 0.8;
+                armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
                 counter++;
             }
             else {
@@ -133,21 +147,32 @@ public class TeleOpBasic_Linear extends LinearOpMode {
 
             double max;
 
-            double driveSpeedMultiplier = (gamepad1.left_bumper) ? 1 : 0.5;
+            double driveSpeedMultiplier = (gamepad1.left_bumper) ? 0.8 : 0.6;
 
-            // POV Mode uses left joystick to go forward & strafe, and right joystick to rotate.
-            double axial   = -gamepad1.left_stick_y * driveSpeedMultiplier;  // Note: pushing stick forward gives negative value
-            double lateral =  gamepad1.left_stick_x * driveSpeedMultiplier;
-            double yaw     =  gamepad1.right_stick_x * driveSpeedMultiplier;
+            double y = -gamepad1.left_stick_y; // Remember, Y stick value is reversed
+            double x = gamepad1.left_stick_x;
+            double rx = gamepad1.right_stick_x;
 
-            lateral += (gamepad1.right_trigger*0.5 - gamepad1.left_trigger*0.5);
+            if (gamepad1.y) {
+                imu.resetYaw();
+            }
 
-            // Combine the joystick requests for each axis-motion to determine each wheel's power.
-            // Set up a variable for each drive wheel to save the power level for telemetry.
-            double leftFrontPower  = axial + lateral + yaw;
-            double rightFrontPower = axial - lateral - yaw;
-            double leftBackPower   = axial - lateral + yaw;
-            double rightBackPower  = axial + lateral - yaw;
+            double botHeading = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
+
+            // Rotate the movement direction counter to the bot's rotation
+            double rotX = x * Math.cos(-botHeading) - y * Math.sin(-botHeading);
+            double rotY = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
+
+            rotX = rotX * 1.1;  // Counteract imperfect strafing
+
+            // Denominator is the largest motor power (absolute value) or 1
+            // This ensures all the powers maintain the same ratio,
+            // but only if at least one is out of the range [-1, 1]
+            double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1);
+            double leftFrontPower = ( (rotY + rotX + rx) / denominator ) * driveSpeedMultiplier;
+            double leftBackPower = ( (rotY - rotX + rx) / denominator ) * driveSpeedMultiplier;
+            double rightFrontPower = ( (rotY - rotX - rx) / denominator ) * driveSpeedMultiplier;
+            double rightBackPower = ( (rotY + rotX - rx) / denominator ) * driveSpeedMultiplier;
 
             // Normalize the values so no wheel power exceeds 100%
             // This ensures that the robot maintains the desired motion.
@@ -198,6 +223,7 @@ public class TeleOpBasic_Linear extends LinearOpMode {
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Front left/Right", "%4.2f, %4.2f", leftFrontPower, rightFrontPower);
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", leftBackPower, rightBackPower);
+            telemetry.addData("Gamepad 2 Left Stick Y:", gamepad2.left_stick_y);
             telemetry.addData("Lift Power", armLiftPower);
             telemetry.addData("Arm Extension Power", armExtensionPower);
             telemetry.addData("Servo Position", clawServoPosition);

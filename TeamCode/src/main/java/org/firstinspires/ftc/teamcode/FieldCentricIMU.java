@@ -10,30 +10,35 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp
 public class FieldCentricIMU extends LinearOpMode {
+
+    private DcMotor leftFrontDrive = null;
+    private DcMotor leftBackDrive = null;
+    private DcMotor rightFrontDrive = null;
+    private DcMotor rightBackDrive = null;
+
     @Override
     public void runOpMode() throws InterruptedException {
-        // Declare our motors
-        // Make sure your ID's match your configuration
-        DcMotor frontLeftDrive = hardwareMap.dcMotor.get("frontLeftDrive");
-        DcMotor backLeftDrive = hardwareMap.dcMotor.get("backLeftDrive");
-        DcMotor frontRightDrive = hardwareMap.dcMotor.get("frontRightDrive");
-        DcMotor backRightDrive = hardwareMap.dcMotor.get("backRightDrive");
 
         // Reverse the right side motors. This may be wrong for your setup.
         // If your robot moves backwards when commanded to go forwards,
         // reverse the left side instead.
         // See the note about this earlier on this page.
-        frontLeftDrive.setDirection(DcMotorSimple.Direction.FORWARD);
-        backLeftDrive.setDirection(DcMotorSimple.Direction.FORWARD);
-        frontRightDrive.setDirection(DcMotorSimple.Direction.FORWARD);
-        backRightDrive.setDirection(DcMotorSimple.Direction.FORWARD);
+        leftFrontDrive  = hardwareMap.get(DcMotor.class, "leftFront");
+        leftBackDrive  = hardwareMap.get(DcMotor.class, "leftBack");
+        rightFrontDrive = hardwareMap.get(DcMotor.class, "rightFront");
+        rightBackDrive = hardwareMap.get(DcMotor.class, "rightBack");
+
+        leftFrontDrive.setDirection(DcMotor.Direction.REVERSE);
+        leftBackDrive.setDirection(DcMotor.Direction.REVERSE);
+        rightFrontDrive.setDirection(DcMotor.Direction.FORWARD);
+        rightBackDrive.setDirection(DcMotor.Direction.FORWARD);
 
         // Retrieve the IMU from the hardware map
         IMU imu = hardwareMap.get(IMU.class, "imu");
         // Adjust the orientation parameters to match your robot
         IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.FORWARD,
-                RevHubOrientationOnRobot.UsbFacingDirection.UP));
+                RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                RevHubOrientationOnRobot.UsbFacingDirection.LEFT));
         // Without this, the REV Hub's orientation is assumed to be logo up / USB forward
         imu.initialize(parameters);
 
@@ -46,9 +51,6 @@ public class FieldCentricIMU extends LinearOpMode {
             double x = gamepad1.left_stick_x;
             double rx = gamepad1.right_stick_x;
 
-            // This button choice was made so that it is hard to hit on accident,
-            // it can be freely changed based on preference.
-            // The equivalent button is start on Xbox-style controllers.
             if (gamepad1.options) {
                 imu.resetYaw();
             }
@@ -65,15 +67,15 @@ public class FieldCentricIMU extends LinearOpMode {
             // This ensures all the powers maintain the same ratio,
             // but only if at least one is out of the range [-1, 1]
             double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1);
-            double frontLeftPower = (rotY + rotX + rx) / denominator;
-            double backLeftPower = (rotY - rotX + rx) / denominator;
-            double frontRightPower = (rotY - rotX - rx) / denominator;
-            double backRightPower = (rotY + rotX - rx) / denominator;
+            double leftFrontPower = ( (rotY + rotX + rx) / denominator ) * 0.5;
+            double leftBackPower = ( (rotY - rotX + rx) / denominator ) * 0.5;
+            double rightFrontPower = ( (rotY - rotX - rx) / denominator ) * 0.5;
+            double rightBackPower = ( (rotY + rotX - rx) / denominator ) * 0.5;
 
-            frontLeftDrive.setPower(frontLeftPower);
-            backLeftDrive.setPower(backLeftPower);
-            frontRightDrive.setPower(frontRightPower);
-            backRightDrive.setPower(backRightPower);
+            leftFrontDrive.setPower(leftFrontPower);
+            rightFrontDrive.setPower(rightFrontPower);
+            leftBackDrive.setPower(leftBackPower);
+            rightBackDrive.setPower(rightBackPower);
         }
     }
 }
