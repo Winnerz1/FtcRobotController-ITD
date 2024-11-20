@@ -103,33 +103,24 @@ public class TeleOpBasic_Linear extends LinearOpMode {
         telemetry.addData("Status", "Initialized");
         telemetry.update();
 
-        int counter = 0;
         int armTarget = armLift.getCurrentPosition();
-        double armLiftPower = 0;
+        int armBottomLimit = armLift.getCurrentPosition();
+        double armLiftPower = 0.8;
 
         waitForStart();
         runtime.reset();
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
+            armLift.setPower(armLiftPower);
+
             int armPosition = armLift.getCurrentPosition();
 
-            if (gamepad2.left_stick_y>0.05 || gamepad2.left_stick_y<-0.05) {
-                armLift.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                armLiftPower = -gamepad2.left_stick_y * 0.5;
-                counter = 0;
-            }
-            else if (counter == 0){
-                armLift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-                armTarget = armPosition;
-                armLift.setTargetPosition(armTarget);
-                armLiftPower = 0.8;
-                counter++;
-            }
-            else {
-                armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            }
-            armLift.setPower(armLiftPower);
+            armTarget += -gamepad2.left_stick_y*3;
+            armTarget = Math.max(armTarget, armBottomLimit+10);
+
+            armLift.setTargetPosition(armTarget);
+            armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
             double max;
 

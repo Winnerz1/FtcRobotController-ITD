@@ -40,17 +40,13 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 /*
- * 1) Axial:    Driving forward and backward               Left-joystick Forward/Backward
- * 2) Lateral:  Strafing right and left                     Left-joystick Right and Left
- * 3) Yaw:      Rotating Clockwise and counter clockwise    Right-joystick Right and Left
- *
- * This code is written assuming that the right-side motors need to be reversed for the robot to drive forward.
- * When you first test your robot, if it moves backward when you push the left stick forward, then you must flip
- * the direction of all 4 motors (see code below).
+ * This code aims to create a "field-centric" drive program.
+ * By tracking the heading, the forward direction can be saved,
+ * allowing for much easier drive control.
  */
 
 @TeleOp(group="Linear OpMode")
-public class TeleOpFcImu extends LinearOpMode {
+public class TeleOpFcImu_Linear extends LinearOpMode {
 
     private ElapsedTime runtime = new ElapsedTime();
 
@@ -100,7 +96,6 @@ public class TeleOpFcImu extends LinearOpMode {
         telemetry.addData("Status", "Initialized");
         telemetry.update();
 
-        int counter = 0;
         int armTarget = armLift.getCurrentPosition();
         int armBottomLimit = armLift.getCurrentPosition();
         double armLiftPower = 0.8;
