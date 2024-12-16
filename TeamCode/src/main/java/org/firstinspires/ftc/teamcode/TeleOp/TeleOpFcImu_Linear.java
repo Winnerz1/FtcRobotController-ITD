@@ -27,44 +27,27 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.TeleOp;
 
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.hardware.Servo;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+
+import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.util.ElapsedTime;
 
 /*
- * This file contains an example of a Linear "OpMode".
- * An OpMode is a 'program' that runs in either the autonomous or the teleop period of an FTC match.
- * The names of OpModes appear on the menu of the FTC Driver Station.
- * When a selection is made from the menu, the corresponding OpMode is executed.
- *
- * This particular OpMode illustrates driving a 4-motor Omni-Directional (or Holonomic) robot.
- * This code will work with either a Mecanum-Drive or an X-Drive train.
- * Both of these drives are illustrated at https://gm0.org/en/latest/docs/robot-design/drivetrains/holonomic.html
- * Note that a Mecanum drive must display an X roller-pattern when viewed from above.
- *
- * Also note that it is critical to set the correct rotation direction for each motor.  See details below.
- *
- * Holonomic drives provide the ability for the robot to move in three axes (directions) simultaneously.
- * Each motion axis is controlled by one Joystick axis.
- *
- * 1) Axial:    Driving forward and backward               Left-joystick Forward/Backward
- * 2) Lateral:  Strafing right and left                     Left-joystick Right and Left
- * 3) Yaw:      Rotating Clockwise and counter clockwise    Right-joystick Right and Left
- *
- * This code is written assuming that the right-side motors need to be reversed for the robot to drive forward.
- * When you first test your robot, if it moves backward when you push the left stick forward, then you must flip
- * the direction of all 4 motors (see code below).
- *
- * Use Android Studio to Copy this Class, and Paste it into your team's code folder with a new name.
- * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
+ * This code aims to create a "field-centric" drive program.
+ * By tracking the heading, the "forward" direction can be
+ * maintained, allowing for directions relative to the driver
+ * instead of the robot.
  */
 
 @TeleOp(group="Linear OpMode")
-public class TeleOpBasic_Linear extends LinearOpMode {
+public class TeleOpFcImu_Linear extends LinearOpMode {
 
     private ElapsedTime runtime = new ElapsedTime();
 
@@ -95,50 +78,81 @@ public class TeleOpBasic_Linear extends LinearOpMode {
         rightFrontDrive.setDirection(DcMotor.Direction.FORWARD);
         rightBackDrive.setDirection(DcMotor.Direction.FORWARD);
 
-        armLift.setDirection(DcMotor.Direction.FORWARD);
-        armLift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        // Retrieve the IMU from the hardware map
+        IMU imu = hardwareMap.get(IMU.class, "imu");
+        // Adjust the orientation parameters to match your robot
+        IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
+                RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                RevHubOrientationOnRobot.UsbFacingDirection.LEFT));
+        // Without this, the REV Hub's orientation is assumed to be logo up / USB forward
+        imu.initialize(parameters);
+
+        // arm initializations
+        armLift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        armLift.setDirection(DcMotor.Direction.REVERSE);
         armLift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        armLift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        int armTarget = armLift.getCurrentPosition();
+        int armBottomLimit = armLift.getCurrentPosition();
+        //int armUpperLimit; // set an arm upper limit
+        double armLiftPower = 0.8; // IMPORTANT: SET POWER AFTER TESTING
 
         // Wait for the game to start (driver presses START)
         telemetry.addData("Status", "Initialized");
         telemetry.update();
-
-        int armTarget = armLift.getCurrentPosition();
-        int armBottomLimit = armLift.getCurrentPosition();
-        double armLiftPower = 0.8;
 
         waitForStart();
         runtime.reset();
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
+            // arm lift code
             armLift.setPower(armLiftPower);
 
             int armPosition = armLift.getCurrentPosition();
 
             armTarget += -gamepad2.left_stick_y*3;
             armTarget = Math.max(armTarget, armBottomLimit+10);
+            //armTarget = Math.min(armTarget, armUpperLimit-10); set arm upper limit
 
             armLift.setTargetPosition(armTarget);
             armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
+            if(gamepad2.y)
+                armTarget = armLift.getCurrentPosition();
+
+            
+            // drive code
             double max;
 
-            double driveSpeedMultiplier = (gamepad1.left_bumper) ? 1 : 0.5;
+            double driveSpeedMultiplier = (gamepad1.left_bumper) ? 0.8 : 0.45;
 
-            // POV Mode uses left joystick to go forward & strafe, and right joystick to rotate.
-            double axial   = -gamepad1.left_stick_y * driveSpeedMultiplier;  // Note: pushing stick forward gives negative value
-            double lateral =  gamepad1.left_stick_x * driveSpeedMultiplier;
-            double yaw     =  gamepad1.right_stick_x * driveSpeedMultiplier;
+            double y = -gamepad1.left_stick_y; // Y stick value is reversed
+            double x = gamepad1.left_stick_x + gamepad1.right_trigger - gamepad1.left_trigger;
+            double rx = gamepad1.right_stick_x;
 
-            lateral += (gamepad1.right_trigger*0.5 - gamepad1.left_trigger*0.5);
+            if (gamepad1.y) {
+                imu.resetYaw();
+            }
 
-            // Combine the joystick requests for each axis-motion to determine each wheel's power.
-            // Set up a variable for each drive wheel to save the power level for telemetry.
-            double leftFrontPower  = axial + lateral + yaw;
-            double rightFrontPower = axial - lateral - yaw;
-            double leftBackPower   = axial - lateral + yaw;
-            double rightBackPower  = axial + lateral - yaw;
+            double botHeading = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
+
+            // Rotate the movement direction counter to the bot's rotation
+            double rotX = x * Math.cos(-botHeading) - y * Math.sin(-botHeading);
+            double rotY = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
+
+            rotX = rotX * 1.1;  // Counteract imperfect strafing
+
+            // Denominator is the largest motor power (absolute value) or 1
+            // This ensures all the powers maintain the same ratio,
+            // but only if at least one is out of the range [-1, 1]
+            double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1);
+            double leftFrontPower = ( (rotY + rotX + rx) / denominator ) * driveSpeedMultiplier;
+            double leftBackPower = ( (rotY - rotX + rx) / denominator ) * driveSpeedMultiplier;
+            double rightFrontPower = ( (rotY - rotX - rx) / denominator ) * driveSpeedMultiplier;
+            double rightBackPower = ( (rotY + rotX - rx) / denominator ) * driveSpeedMultiplier;
 
             // Normalize the values so no wheel power exceeds 100%
             // This ensures that the robot maintains the desired motion.
@@ -153,11 +167,12 @@ public class TeleOpBasic_Linear extends LinearOpMode {
                 rightBackPower  /= max;
             }
 
+            // arm extension and claw servo
             double armExtensionPower;
             double clawServoPosition;
 
             armExtensionPower = -gamepad2.right_stick_y;
-            clawServoPosition = (gamepad2.right_trigger*0.2)+0.35;
+            clawServoPosition = 0.29-(gamepad2.right_trigger*0.15); // values: default pos | trigger multiplier
 
             // This is test code:
             //
@@ -176,7 +191,7 @@ public class TeleOpBasic_Linear extends LinearOpMode {
             rightBackPower  = gamepad1.b ? 1.0 : 0.0;  // B gamepad
             */
 
-            // Send calculated power to wheels
+            // Send calculated power to wheels and mechanisms
             leftFrontDrive.setPower(leftFrontPower);
             rightFrontDrive.setPower(rightFrontPower);
             leftBackDrive.setPower(leftBackPower);
@@ -185,13 +200,15 @@ public class TeleOpBasic_Linear extends LinearOpMode {
             armExtension.setPower(armExtensionPower);
             clawServo.setPosition(clawServoPosition);
 
-            // Show the elapsed game time and wheel power.
+            // Show the elapsed game time and telemetry
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Front left/Right", "%4.2f, %4.2f", leftFrontPower, rightFrontPower);
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", leftBackPower, rightBackPower);
             telemetry.addData("Lift Power", armLiftPower);
             telemetry.addData("Arm Extension Power", armExtensionPower);
-            telemetry.addData("Servo Position", clawServoPosition);
+            telemetry.addData("Arm Extension Ticks", armExtension.getCurrentPosition());
+            telemetry.addData("Servo Position", clawServo.getPosition());
+            telemetry.addData("Servo Target", clawServoPosition);
             telemetry.update();
         }
     }
