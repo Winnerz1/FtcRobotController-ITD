@@ -28,7 +28,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import org.firstinspires.ftc.teamcode.Roadrunner.MecanumDrive;
 
 @Config
-@Autonomous(name = "RsFullSpecimenAuto", group = "Full Autonomous")
+@Autonomous(name = "RsFullSpecimenAuto")
 public class RsSpecimenAutoRR extends LinearOpMode{
 
 
