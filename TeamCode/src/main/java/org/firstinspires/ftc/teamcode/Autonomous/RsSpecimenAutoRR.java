@@ -22,27 +22,70 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 import org.firstinspires.ftc.teamcode.Roadrunner.MecanumDrive;
 
 @Config
-@Autonomous(name = "RsFullSpecimenAuto")
+@Autonomous(name = "RsSpecimenAuto")
 public class RsSpecimenAutoRR extends LinearOpMode{
 
 
     // arm lift class
     public class ArmLift {
-        private DcMotorEx armLift;
+        private DcMotorEx armLiftRight;
+        private DcMotorEx armLiftLeft;
 
         public ArmLift(HardwareMap hardwareMap) {
-            armLift = hardwareMap.get(DcMotorEx.class, "armLift");
+            armLiftLeft = hardwareMap.get(DcMotorEx.class, "armLiftLeft");
+            armLiftRight = hardwareMap.get(DcMotorEx.class, "armLiftRight");
 
-            armLift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            armLift.setDirection(DcMotorSimple.Direction.REVERSE);
-            armLift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-            armLift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            armLiftLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+            armLiftLeft.setDirection(DcMotorEx.Direction.REVERSE);
+            armLiftRight.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+            armLiftRight.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+
+            armLiftRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+            armLiftRight.setDirection(DcMotorEx.Direction.FORWARD);
+            armLiftRight.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+            armLiftRight.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        }
+
+        public class ArmPosIdle implements Action {
+            // checks if the arm lift motor has been powered on
+            private boolean initialized = false;
+
+            // actions are formatted via telemetry packets as below
+            @Override
+            public boolean run(@NonNull TelemetryPacket packet) {
+                // powers on motor, if it is not on
+                if (!initialized) {
+                    armLiftLeft.setPower(0.8);
+                    armLiftRight.setPower(0.8);
+                    initialized = true;
+                }
+
+                // get current pos, set target pos
+                double leftPos = armLiftLeft.getCurrentPosition();
+                double rightPos = armLiftRight.getCurrentPosition();
+                armLiftLeft.setTargetPosition(50); // IMPORTANT: SET CORRECT ARM POSITIONS
+                armLiftRight.setTargetPosition(50);
+                armLiftLeft.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+                armLiftRight.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+
+                packet.put("armLiftLeft Pos:", leftPos);
+                packet.put("armLiftRight Pos:", rightPos);
+                if (leftPos < armLiftLeft.getTargetPosition() || rightPos < armLiftRight.getTargetPosition()) {
+                    // true causes the action to rerun
+                    return true;
+                } else {
+                    // false stops action rerun
+                    return false;
+                }
+            }
+        }
+
+        public Action armPosIdle() {
+            return new ArmPosIdle();
         }
 
         public class ArmPosPickup implements Action {
@@ -60,8 +103,8 @@ public class RsSpecimenAutoRR extends LinearOpMode{
 
                 // get current pos, set target pos
                 double pos = armLift.getCurrentPosition();
-                armLift.setTargetPosition(50); // IMPORTANT: SET CORRECT POSITIONS
-                armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                armLift.setTargetPosition(175); // IMPORTANT: SET CORRECT POSITIONS
+                armLift.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
 
                 packet.put("armLift Pos:", pos);
                 if (pos < armLift.getTargetPosition()) {
@@ -93,8 +136,8 @@ public class RsSpecimenAutoRR extends LinearOpMode{
 
                 // get current pos, set target pos
                 double pos = armLift.getCurrentPosition();
-                armLift.setTargetPosition(150); // IMPORTANT: SET CORRECT POSITIONS
-                armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                armLift.setTargetPosition(332); // IMPORTANT: SET CORRECT POSITIONS
+                armLift.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
 
                 packet.put("armLift Pos:", pos);
                 if (pos < armLift.getTargetPosition()) {
@@ -111,7 +154,7 @@ public class RsSpecimenAutoRR extends LinearOpMode{
             return new ArmPosScore();
         }
 
-        public class ArmPosDown implements Action {
+        public class ArmPosUp implements Action {
             // checks if the arm lift motor has been powered on
             private boolean initialized = false;
 
@@ -126,8 +169,8 @@ public class RsSpecimenAutoRR extends LinearOpMode{
 
                 // get current pos, set target pos
                 double pos = armLift.getCurrentPosition();
-                armLift.setTargetPosition(50); // IMPORTANT: SET CORRECT POSITIONS
-                armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                armLift.setTargetPosition(390); // IMPORTANT: SET CORRECT POSITIONS
+                armLift.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
 
                 packet.put("armLift Pos:", pos);
                 if (pos < armLift.getTargetPosition()) {
@@ -140,8 +183,8 @@ public class RsSpecimenAutoRR extends LinearOpMode{
             }
         }
 
-        public Action armPosDown() {
-            return new ArmPosDown();
+        public Action armPosUp() {
+            return new ArmPosUp();
         }
     }
 
@@ -150,13 +193,55 @@ public class RsSpecimenAutoRR extends LinearOpMode{
 
         public ArmExtension(HardwareMap hardwareMap) {
             armExtension = hardwareMap.get(DcMotorEx.class, "armExtension");
-            armExtension.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            armExtension.setDirection(DcMotorSimple.Direction.FORWARD);
-            armExtension.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-            armExtension.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            armExtension.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+            armExtension.setDirection(DcMotorEx.Direction.FORWARD);
+            armExtension.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
+            //armExtension.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         }
 
         public class ExtendArm implements Action {
+            // actions are formatted via telemetry packets as below
+            @Override
+            public boolean run(@NonNull TelemetryPacket packet) {
+                armExtension.setPower(1);
+
+                return false;
+            }
+        }
+
+        public Action extendArm() {
+            return new SequentialAction(new ExtendArm(), new SleepAction(6), new StopArm());
+        }
+
+        public class RetractArm implements Action {
+            // actions are formatted via telemetry packets as below
+            @Override
+            public boolean run(@NonNull TelemetryPacket packet) {
+                armExtension.setPower(-1);
+
+                return false;
+            }
+        }
+
+        public Action retractArm() {
+            return new SequentialAction(new RetractArm(), new SleepAction(5), new StopArm());
+        }
+
+        public class StopArm implements Action {
+            // actions are formatted via telemetry packets as below
+            @Override
+            public boolean run(@NonNull TelemetryPacket packet) {
+                armExtension.setPower(0);
+
+                return false;
+            }
+        }
+
+        public Action stopArm() {
+            return new StopArm();
+        }
+
+        /*public class ExtendArm implements Action {
             // checks if the arm lift motor has been powered on
             private boolean initialized = false;
 
@@ -172,7 +257,7 @@ public class RsSpecimenAutoRR extends LinearOpMode{
                 // get current pos, set target pos
                 double pos = armExtension.getCurrentPosition();
                 armExtension.setTargetPosition(25); // IMPORTANT: SET CORRECT POSITIONS
-                armExtension.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                armExtension.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
 
                 packet.put("armLift Pos:", pos);
                 if (pos < armExtension.getTargetPosition()) {
@@ -186,7 +271,7 @@ public class RsSpecimenAutoRR extends LinearOpMode{
         }
 
         public Action extendArm() {
-            return new ArmExtension.ExtendArm();
+            return new ExtendArm();
         }
 
         public class RetractArm implements Action {
@@ -205,7 +290,7 @@ public class RsSpecimenAutoRR extends LinearOpMode{
                 // get current pos, set target pos
                 double pos = armExtension.getCurrentPosition();
                 armExtension.setTargetPosition(10); // IMPORTANT: SET CORRECT POSITIONS
-                armExtension.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                armExtension.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
 
                 packet.put("armLift Pos:", pos);
                 if (pos > armExtension.getTargetPosition()) {
@@ -218,9 +303,9 @@ public class RsSpecimenAutoRR extends LinearOpMode{
             }
         }
 
-        public Action RetractArm() {
-            return new ArmExtension.RetractArm();
-        }
+        public Action retractArm() {
+            return new RetractArm();
+        }*/
     }
 
     // claw class
@@ -234,7 +319,7 @@ public class RsSpecimenAutoRR extends LinearOpMode{
         public class OpenClaw implements Action {
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
-                claw.setPosition(0.9);
+                claw.setPosition(0.45);
                 return false;
             }
         }
@@ -246,7 +331,7 @@ public class RsSpecimenAutoRR extends LinearOpMode{
         public class CloseClaw implements Action {
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
-                claw.setPosition(1.2);
+                claw.setPosition(0.7);
                 return false;
             }
         }
@@ -269,76 +354,96 @@ public class RsSpecimenAutoRR extends LinearOpMode{
         ArmExtension armExtension = new ArmExtension(hardwareMap);
 
         TrajectoryActionBuilder scorePreloadTrajBuild = drive.actionBuilder(initialPose)
+                // move forward a little to make room for arm lift
+                .lineToY(-56)
+                .waitSeconds(5)
                 // score preloaded specimen
-                .lineToY(-32);
+                .lineToY(-30);
 
         TrajectoryActionBuilder samplePushTrajBuild = scorePreloadTrajBuild.fresh()
                 // push samples into observation zone
                 .setTangent(Math.toRadians(310))
-                .splineToConstantHeading(new Vector2d(36, -36), Math.PI / 2)
-                .lineToY(-12)
+                .splineToConstantHeading(new Vector2d(36, -34), Math.PI / 2)
+                .lineToY(-10)
                 .setTangent(Math.toRadians(40))
                 .splineToConstantHeading(new Vector2d(46, -50), Math.PI / 2)
-                .lineToY(-14)
+                .lineToY(-10)
                 .setTangent(Math.toRadians(45))
                 .splineToConstantHeading(new Vector2d(60, -50), Math.PI /2);
 
         TrajectoryActionBuilder specimenPickupTrajBuild = samplePushTrajBuild.fresh()
+                // turn robot around, pick up specimen
                 .setTangent(Math.toRadians(135))
-                .splineToLinearHeading(new Pose2d(38, -50, Math.toRadians(-90)), Math.PI)
+                .splineToLinearHeading(new Pose2d(38, -46, Math.toRadians(-90)), Math.PI)
                 .setTangent(3*Math.PI/2)
                 .lineToY(-62);
 
         TrajectoryActionBuilder specimenScoreTrajBuild = specimenPickupTrajBuild.fresh()
+                // move to bar and score specimen
                 .setTangent(Math.toRadians(130))
-                .strafeTo(new Vector2d(8, -40));
+                .splineToLinearHeading(new Pose2d(8, -48, Math.toRadians(-275)), Math.toRadians(120))
+                .setTangent(Math.PI/2)
+                .lineToY(-30);
+
+        TrajectoryActionBuilder parkTrajBuild = specimenScoreTrajBuild.fresh()
+                .strafeTo(new Vector2d(60,-58));
 
         Action scorePreloadTraj = scorePreloadTrajBuild.build();
         Action samplePushTraj = samplePushTrajBuild.build();
         Action specimenPickupTraj = specimenPickupTrajBuild.build();
         Action specimenScoreTraj = specimenScoreTrajBuild.build();
+        Action parkTraj = parkTrajBuild.build();
 
         waitForStart();
-
-        Actions.runBlocking(claw.closeClaw());
-
 
         if (isStopRequested()) return;
 
         Actions.runBlocking(
                 // container for everything
                 new SequentialAction(
-                        // score preload
+                        claw.closeClaw(),
+                        armLift.armPosIdle(),
+                        new ParallelAction(
+                            scorePreloadTraj,
+                            new ParallelAction(
+                                armExtension.extendArm(),
+                                armLift.armPosScore()
+                            )
+                        ),
+                        claw.openClaw(),
+                        armLift.armPosUp(),
+                        new ParallelAction(
+                            armExtension.retractArm(),
+                            // push specimens into observation zone
+                            samplePushTraj
+                        ),
+                        // cut off code past here if it doesn't work
+                        new ParallelAction(
+                            armLift.armPosPickup(),
+                            specimenPickupTraj
+                        ),
                         claw.closeClaw(),
                         armLift.armPosScore(),
-                        scorePreloadTraj,
                         new ParallelAction(
-                                armLift.armPosDown(),
-                                new SequentialAction(
-                                        new SleepAction(0.25),
-                                        claw.openClaw()
-                                )
-                        ),
-                        // push specimens into observation zone
-                        samplePushTraj,
-                        // pickup specimen from wall
-                        specimenPickupTraj,
-                        claw.closeClaw(),
-                        new ParallelAction(
-                                armLift.armPosScore(),
-                                new SequentialAction(
-                                        new SleepAction(0.25),
-                                        specimenScoreTraj
-                                )
+                            armExtension.extendArm(),
+                            new SequentialAction(
+                                new SleepAction(5.5),
+                                specimenScoreTraj
+                            )
                         ),
                         new ParallelAction(
-                                armLift.armPosDown(),
+                                armLift.armPosUp(),
+                                claw.openClaw()
+                        ),
+                        new ParallelAction(
+                                armExtension.retractArm(),
                                 new SequentialAction(
-                                        new SleepAction(0.25),
-                                        claw.openClaw()
+                                        new SleepAction(5.5),
+                                        parkTraj
                                 )
                         )
                 )
+                // container for everything
         );
 
     }

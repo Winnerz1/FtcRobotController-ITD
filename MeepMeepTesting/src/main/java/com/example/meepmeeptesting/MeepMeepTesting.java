@@ -23,21 +23,23 @@ public class MeepMeepTesting {
                 .lineToY(-32)
                 // push samples into observation zone
                 .setTangent(Math.toRadians(310))
-                .splineToConstantHeading(new Vector2d(38, -36), Math.PI / 2)
-                .lineToY(-12)
+                .splineToConstantHeading(new Vector2d(36, -34), Math.PI / 2)
+                .lineToY(-10)
                 .setTangent(Math.toRadians(40))
-                .splineToConstantHeading(new Vector2d(48, -50), Math.PI / 2)
-                .lineToY(-14)
+                .splineToConstantHeading(new Vector2d(46, -50), Math.PI / 2)
+                .lineToY(-10)
                 .setTangent(Math.toRadians(45))
                 .splineToConstantHeading(new Vector2d(60, -50), Math.PI /2)
                 // turn robot around, pick up specimen
                 .setTangent(Math.toRadians(135))
                 .splineToLinearHeading(new Pose2d(38, -46, Math.toRadians(-90)), Math.PI)
                 .setTangent(3*Math.PI/2)
-                .lineToY(-60)
+                .lineToY(-62)
                 // move to bar and score specimen
                 .setTangent(Math.toRadians(130))
-                .splineToLinearHeading(new Pose2d(8, -32, Math.toRadians(-270)), Math.toRadians(120))
+                .splineToLinearHeading(new Pose2d(8, -48, Math.toRadians(-275)), Math.toRadians(120))
+                .setTangent(Math.PI/2)
+                .lineToY(-10)
                 .build());
 
         meepMeep.setBackground(MeepMeep.Background.FIELD_INTO_THE_DEEP_JUICE_DARK)
