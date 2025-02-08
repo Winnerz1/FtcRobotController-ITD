@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Autonomous;
+/*package org.firstinspires.ftc.teamcode.Autonomous;
 
 import androidx.annotation.NonNull;
 
@@ -305,7 +305,7 @@ public class RsSpecimenAutoRR extends LinearOpMode{
 
         public Action retractArm() {
             return new RetractArm();
-        }*/
+        }*//*
     }
 
     // claw class
@@ -449,3 +449,4 @@ public class RsSpecimenAutoRR extends LinearOpMode{
     }
 
 }
+*/

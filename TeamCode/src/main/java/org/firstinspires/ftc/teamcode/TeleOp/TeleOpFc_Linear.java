@@ -57,7 +57,7 @@ public class TeleOpFc_Linear extends LinearOpMode {
     private DcMotor rightBackDrive = null;
     private DcMotor armLiftLeft = null;
     private DcMotor armLiftRight = null;
-    private DcMotor armExtension = null;
+    private DcMotor viperSlide = null;
     private Servo clawServo = null;
 
     @Override
@@ -69,9 +69,10 @@ public class TeleOpFc_Linear extends LinearOpMode {
         leftBackDrive  = hardwareMap.get(DcMotor.class, "leftBack");
         rightFrontDrive = hardwareMap.get(DcMotor.class, "rightFront");
         rightBackDrive = hardwareMap.get(DcMotor.class, "rightBack");
+
         armLiftLeft = hardwareMap.get(DcMotor.class, "armLiftLeft");
-        armLiftLeft = hardwareMap.get(DcMotor.class, "armLiftLeft");
-        armExtension = hardwareMap.get(DcMotor.class, "armExtension");
+        armLiftRight = hardwareMap.get(DcMotor.class, "armLiftRight");
+        viperSlide = hardwareMap.get(DcMotor.class, "viperSlide");
         clawServo = hardwareMap.get(Servo.class, "claw");
 
         // make sure to test motor directions
@@ -90,16 +91,29 @@ public class TeleOpFc_Linear extends LinearOpMode {
         imu.initialize(parameters);
 
         // arm initializations
-        armLiftLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER); // counter clockwise old arm = arm up
-        armLiftLeft.setDirection(DcMotor.Direction.FORWARD); // old arm = reverse (counter clockwise is positive)
-        armLiftLEFT.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        armLiftLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        armLiftLeft.setDirection(DcMotor.Direction.FORWARD);
+        armLiftLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
-        armLift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        armLiftRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        armLiftRight.setDirection(DcMotor.Direction.REVERSE);
+        armLiftRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
-        int armTarget = armLift.getCurrentPosition();
+        int armLiftTarget = 0;
         //int armBottomLimit = armLift.getCurrentPosition();
         //int armUpperLimit; // set an arm upper limit
         double armLiftPower = 0.8; // IMPORTANT: SET POWER AFTER TESTING
+
+        // slide initializations
+        viperSlide.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        viperSlide.setDirection(DcMotor.Direction.REVERSE);
+        viperSlide.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        int slideTarget = 0;
+        double slidePower = 1;
+
+        // claw pos init (this doesn't really do anything)
+        double clawServoPosition;
 
         // Wait for the game to start (driver presses START)
         telemetry.addData("Status", "Initialized");
@@ -108,22 +122,38 @@ public class TeleOpFc_Linear extends LinearOpMode {
         waitForStart();
         runtime.reset();
 
+        armLiftLeft.setPower(armLiftPower);
+        armLiftRight.setPower(armLiftPower);
+
+        viperSlide.setPower(slidePower);
+
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-            // arm lift code
-            armLift.setPower(armLiftPower);
 
-            int armPosition = armLift.getCurrentPosition();
-
-            armTarget += -gamepad2.left_stick_y*3;
+            armLiftTarget += -gamepad2.left_stick_y*3;
             //armTarget = Math.max(armTarget, armBottomLimit+10);
             //armTarget = Math.min(armTarget, armUpperLimit-10); set arm upper limit
 
-            armLift.setTargetPosition(armTarget);
-            armLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            armLiftLeft.setTargetPosition(armLiftTarget);
+            armLiftRight.setTargetPosition(armLiftTarget);
 
-            if(gamepad2.y)
-                armTarget = armLift.getCurrentPosition();
+            armLiftLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            armLiftRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+            // viperslide code
+
+            slideTarget += -gamepad2.right_stick_y*5;
+
+            viperSlide.setTargetPosition(slideTarget);
+            viperSlide.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+
+            if(gamepad2.y) // arm lift emergency stop
+                armLiftTarget = (armLiftLeft.getCurrentPosition() + armLiftRight.getCurrentPosition()) / 2;
+
+            // claw (servo)
+
+            clawServoPosition = 0.46+(gamepad2.right_trigger*0.3 - gamepad2.left_trigger*0.3); // values: default pos | trigger multiplier
 
             
             // drive code
@@ -169,13 +199,6 @@ public class TeleOpFc_Linear extends LinearOpMode {
                 rightBackPower  /= max;
             }
 
-            // arm extension and claw servo
-            double armExtensionPower;
-            double clawServoPosition;
-
-            armExtensionPower = -gamepad2.right_stick_y;
-            clawServoPosition = 0.46+(gamepad2.right_trigger*0.3 - gamepad2.left_trigger*0.3); // values: default pos | trigger multiplier
-
             // This is test code:
             //
             // Uncomment the following code to test your  motor directions.
@@ -199,16 +222,17 @@ public class TeleOpFc_Linear extends LinearOpMode {
             leftBackDrive.setPower(leftBackPower);
             rightBackDrive.setPower(rightBackPower);
 
-            armExtension.setPower(armExtensionPower);
             clawServo.setPosition(clawServoPosition);
 
             // Show the elapsed game time and telemetry
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Front left/Right", "%4.2f, %4.2f", leftFrontPower, rightFrontPower);
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", leftBackPower, rightBackPower);
-            telemetry.addData("Lift Power", armLiftPower);
-            telemetry.addData("Lift Position", armLift.getCurrentPosition());
-            telemetry.addData("Arm Extension Power", armExtensionPower);
+            telemetry.addData("","");
+            telemetry.addData("Lift Target", armLiftTarget);
+            telemetry.addData("Lift Position", (armLiftLeft.getCurrentPosition() + armLiftRight.getCurrentPosition()) / 2);
+            telemetry.addData("Lift Target", slideTarget);
+            telemetry.addData("Slide Position", viperSlide.getCurrentPosition());
             telemetry.addData("Servo Target", clawServoPosition);
             telemetry.update();
         }
