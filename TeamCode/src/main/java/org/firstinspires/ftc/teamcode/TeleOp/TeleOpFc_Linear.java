@@ -70,16 +70,20 @@ public class TeleOpFc_Linear extends LinearOpMode {
         rightFrontDrive = hardwareMap.get(DcMotor.class, "rightFront");
         rightBackDrive = hardwareMap.get(DcMotor.class, "rightBack");
 
-        armLiftLeft = hardwareMap.get(DcMotor.class, "armLiftLeft");
-        armLiftRight = hardwareMap.get(DcMotor.class, "armLiftRight");
-        viperSlide = hardwareMap.get(DcMotor.class, "viperSlide");
-        clawServo = hardwareMap.get(Servo.class, "claw");
-
         // make sure to test motor directions
         leftFrontDrive.setDirection(DcMotor.Direction.REVERSE);
         leftBackDrive.setDirection(DcMotor.Direction.REVERSE);
         rightFrontDrive.setDirection(DcMotor.Direction.FORWARD);
         rightBackDrive.setDirection(DcMotor.Direction.FORWARD);
+
+        armLiftLeft = hardwareMap.get(DcMotor.class, "armLiftLeft");
+        armLiftRight = hardwareMap.get(DcMotor.class, "armLiftRight");
+        viperSlide = hardwareMap.get(DcMotor.class, "viperSlide");
+        clawServo = hardwareMap.get(Servo.class, "claw");
+
+        armLiftLeft.setDirection(DcMotor.Direction.FORWARD);
+        armLiftRight.setDirection(DcMotor.Direction.FORWARD);
+        viperSlide.setDirection(DcMotor.Direction.REVERSE);
 
         // Retrieve the IMU from the hardware map
         IMU imu = hardwareMap.get(IMU.class, "imu");
@@ -91,29 +95,46 @@ public class TeleOpFc_Linear extends LinearOpMode {
         imu.initialize(parameters);
 
         // arm initializations
-        armLiftLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        armLiftLeft.setDirection(DcMotor.Direction.FORWARD);
-        armLiftLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
-        armLiftRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        armLiftRight.setDirection(DcMotor.Direction.REVERSE);
-        armLiftRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
         int armLiftTarget = 0;
+
+        int leftEncoderTarget = 0;
+        int rightEncoderTarget = 0;
+
+        double armLiftPower = 0.7;
+
         //int armBottomLimit = armLift.getCurrentPosition();
         //int armUpperLimit; // set an arm upper limit
-        double armLiftPower = 0.8; // IMPORTANT: SET POWER AFTER TESTING
+
+        armLiftLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        armLiftRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        armLiftLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        armLiftRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        armLiftLeft.setTargetPosition(0);
+        armLiftRight.setTargetPosition(0);
+
+        armLiftLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        armLiftRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        armLiftLeft.setPower(armLiftPower);
+        armLiftRight.setPower(armLiftPower);
 
         // slide initializations
-        viperSlide.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        viperSlide.setDirection(DcMotor.Direction.REVERSE);
-        viperSlide.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
         int slideTarget = 0;
-        double slidePower = 1;
+        double slidePower = 0.7;
 
-        // claw pos init (this doesn't really do anything)
-        double clawServoPosition;
+        viperSlide.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        viperSlide.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        viperSlide.setTargetPosition(0);
+
+        viperSlide.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        viperSlide.setPower(armLiftPower);
+
+        // claw pos init
+        double clawServoPosition = 0.5;
 
         // Wait for the game to start (driver presses START)
         telemetry.addData("Status", "Initialized");
@@ -122,39 +143,47 @@ public class TeleOpFc_Linear extends LinearOpMode {
         waitForStart();
         runtime.reset();
 
-        armLiftLeft.setPower(armLiftPower);
-        armLiftRight.setPower(armLiftPower);
-
-        viperSlide.setPower(slidePower);
-
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-
+            // arm lift
             armLiftTarget += -gamepad2.left_stick_y*3;
             //armTarget = Math.max(armTarget, armBottomLimit+10);
             //armTarget = Math.min(armTarget, armUpperLimit-10); set arm upper limit
 
+            if (gamepad2.left_stick_y < 0.1 && gamepad2.left_stick_y > -0.1) {
+                armLiftLeft.setTargetPosition(armLiftLeft.getCurrentPosition());
+                armLiftRight.setTargetPosition(armLiftRight.getCurrentPosition());
+            }
+
             armLiftLeft.setTargetPosition(armLiftTarget);
-            armLiftRight.setTargetPosition(armLiftTarget);
+            armLiftRight.setTargetPosition(-armLiftTarget);
 
             armLiftLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             armLiftRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-            // viperslide code
 
-            slideTarget += -gamepad2.right_stick_y*5;
+            // viperslide
+            if (gamepad2.right_stick_y < 0.1 && gamepad2.right_stick_y > -0.1) {
+                viperSlide.setTargetPosition(viperSlide.getCurrentPosition());
+            }
 
             viperSlide.setTargetPosition(slideTarget);
             viperSlide.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-
-            if(gamepad2.y) // arm lift emergency stop
-                armLiftTarget = (armLiftLeft.getCurrentPosition() + armLiftRight.getCurrentPosition()) / 2;
+            if(gamepad2.y) { // all arm mechanisms stop/hold in place
+                armLiftLeft.setTargetPosition(armLiftLeft.getCurrentPosition());
+                armLiftRight.setTargetPosition(armLiftLeft.getCurrentPosition());
+                viperSlide.setTargetPosition(armLiftLeft.getCurrentPosition());
+            }
 
             // claw (servo)
+            if (gamepad2.right_bumper)
+                clawServoPosition = 0.5;
 
-            clawServoPosition = 0.46+(gamepad2.right_trigger*0.3 - gamepad2.left_trigger*0.3); // values: default pos | trigger multiplier
+            if (gamepad2.left_bumper)
+                clawServoPosition = 0.4;
 
+            clawServo.setPosition(clawServoPosition);
             
             // drive code
             double max;
@@ -221,8 +250,6 @@ public class TeleOpFc_Linear extends LinearOpMode {
             rightFrontDrive.setPower(rightFrontPower);
             leftBackDrive.setPower(leftBackPower);
             rightBackDrive.setPower(rightBackPower);
-
-            clawServo.setPosition(clawServoPosition);
 
             // Show the elapsed game time and telemetry
             telemetry.addData("Status", "Run Time: " + runtime.toString());
